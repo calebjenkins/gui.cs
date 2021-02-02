@@ -10,90 +10,112 @@ using NStack;
 
 namespace Terminal.Gui {
 	/// <summary>
-	///   Button is a view that provides an item that invokes a callback when activated.
+	///   Button is a <see cref="View"/> that provides an item that invokes an <see cref="Action"/> when activated by the user.
 	/// </summary>
 	/// <remarks>
 	/// <para>
-	///   Provides a button that can be clicked, or pressed with
-	///   the enter key and processes hotkeys (the first uppercase
-	///   letter in the button becomes the hotkey).
+	///   Provides a button showing text invokes an <see cref="Action"/> when clicked on with a mouse
+	///   or when the user presses SPACE, ENTER, or hotkey. The hotkey is the first letter or digit following the first underscore ('_') 
+	///   in the button text. 
 	/// </para>
 	/// <para>
-	///   If the button is configured as the default (IsDefault) the button
-	///   will respond to the return key is no other view processes it, and
-	///   turns this into a clicked event.
+	///   Use <see cref="View.HotKeySpecifier"/> to change the hotkey specifier from the default of ('_'). 
+	/// </para>
+	/// <para>
+	///   If no hotkey specifier is found, the first uppercase letter encountered will be used as the hotkey.
+	/// </para>
+	/// <para>
+	///   When the button is configured as the default (<see cref="IsDefault"/>) and the user presses
+	///   the ENTER key, if no other <see cref="View"/> processes the <see cref="KeyEvent"/>, the <see cref="Button"/>'s
+	///   <see cref="Action"/> will be invoked.
 	/// </para>
 	/// </remarks>
 	public class Button : View {
 		ustring text;
-		ustring shown_text;
-		char hot_key;
-		int hot_pos = -1;
 		bool is_default;
 
 		/// <summary>
-		/// Gets or sets a value indicating whether this <see cref="T:Terminal.Gui.Button"/> is the default action to activate on return on a dialog.
+		///   Initializes a new instance of <see cref="Button"/> using <see cref="LayoutStyle.Computed"/> layout.
 		/// </summary>
-		/// <value><c>true</c> if is default; otherwise, <c>false</c>.</value>
-		public bool IsDefault {
-			get => is_default;
-			set {
-				is_default = value;
-				Update ();
-			}
+		/// <remarks>
+		///   The width of the <see cref="Button"/> is computed based on the
+		///   text length. The height will always be 1.
+		/// </remarks>
+		public Button () : this (text: string.Empty, is_default: false) { }
+
+		/// <summary>
+		///   Initializes a new instance of <see cref="Button"/> using <see cref="LayoutStyle.Computed"/> layout.
+		/// </summary>
+		/// <remarks>
+		///   The width of the <see cref="Button"/> is computed based on the
+		///   text length. The height will always be 1.
+		/// </remarks>
+		/// <param name="text">The button's text</param>
+		/// <param name="is_default">
+		///   If <c>true</c>, a special decoration is used, and the user pressing the enter key 
+		///   in a <see cref="Dialog"/> will implicitly activate this button.
+		/// </param>
+		public Button (ustring text, bool is_default = false) : base (text)
+		{
+			Init (text, is_default);
 		}
 
 		/// <summary>
-		///   Clicked event, raised when the button is clicked.
+		///   Initializes a new instance of <see cref="Button"/> using <see cref="LayoutStyle.Absolute"/> layout, based on the given text
 		/// </summary>
 		/// <remarks>
-		///   Client code can hook up to this event, it is
-		///   raised when the button is activated either with
-		///   the mouse or the keyboard.
-		/// </remarks>
-		public Action Clicked;
-
-		/// <summary>
-		///   Public constructor, creates a button based on
-		///   the given text at position 0,0
-		/// </summary>
-		/// <remarks>
-		///   The size of the button is computed based on the
-		///   text length.   This button is not a default button.
-		/// </remarks>
-		/// <param name="text">The button's text</param>
-		public Button (string text) : this (0, 0, text) { }
-
-		/// <summary>
-		///   Public constructor, creates a button based on
-		///   the given text.
-		/// </summary>
-		/// <remarks>
-		///   If the value for is_default is true, a special
-		///   decoration is used, and the enter key on a
-		///   dialog would implicitly activate this button.
-		/// </remarks>
-		/// <param name="text">The button's text</param>
-		/// <param name="is_default">If set, this makes the button the default button in the current view, which means that if the user presses return on a view that does not handle return, it will be treated as if he had clicked on the button</param>
-		public Button (string text, bool is_default) : this (0, 0, text, is_default) { }
-
-		/// <summary>
-		///   Public constructor, creates a button based on
-		///   the given text at the given position.
-		/// </summary>
-		/// <remarks>
-		///   The size of the button is computed based on the
-		///   text length.   This button is not a default button.
+		///   The width of the <see cref="Button"/> is computed based on the
+		///   text length. The height will always be 1.
 		/// </remarks>
 		/// <param name="x">X position where the button will be shown.</param>
 		/// <param name="y">Y position where the button will be shown.</param>
 		/// <param name="text">The button's text</param>
-		public Button (int x, int y, string text) : this (x, y, text, false) { }
+		public Button (int x, int y, ustring text) : this (x, y, text, false) { }
 
 		/// <summary>
-		///   The text displayed by this widget.
+		///   Initializes a new instance of <see cref="Button"/> using <see cref="LayoutStyle.Absolute"/> layout, based on the given text.
 		/// </summary>
-		public ustring Text {
+		/// <remarks>
+		///   The width of the <see cref="Button"/> is computed based on the
+		///   text length. The height will always be 1.
+		/// </remarks>
+		/// <param name="x">X position where the button will be shown.</param>
+		/// <param name="y">Y position where the button will be shown.</param>
+		/// <param name="text">The button's text</param>
+		/// <param name="is_default">
+		///   If <c>true</c>, a special decoration is used, and the user pressing the enter key 
+		///   in a <see cref="Dialog"/> will implicitly activate this button.
+		/// </param>
+		public Button (int x, int y, ustring text, bool is_default)
+		    : base (new Rect (x, y, text.RuneCount + 4 + (is_default ? 2 : 0), 1), text)
+		{
+			Init (text, is_default);
+		}
+
+		Rune _leftBracket;
+		Rune _rightBracket;
+		Rune _leftDefault;
+		Rune _rightDefault;
+
+		void Init (ustring text, bool is_default)
+		{
+			HotKeySpecifier = new Rune ('_');
+
+			_leftBracket = new Rune (Driver != null ? Driver.LeftBracket : '[');
+			_rightBracket = new Rune (Driver != null ? Driver.RightBracket : ']');
+			_leftDefault = new Rune (Driver != null ? Driver.LeftDefaultIndicator : '<');
+			_rightDefault = new Rune (Driver != null ? Driver.RightDefaultIndicator : '>');
+
+			CanFocus = true;
+			this.is_default = is_default;
+			this.text = text ?? string.Empty;
+			Update ();
+		}
+
+		/// <summary>
+		///   The text displayed by this <see cref="Button"/>.
+		/// </summary>
+		public new ustring Text {
 			get {
 				return text;
 			}
@@ -104,78 +126,56 @@ namespace Terminal.Gui {
 			}
 		}
 
+		/// <summary>
+		/// Gets or sets whether the <see cref="Button"/> is the default action to activate in a dialog.
+		/// </summary>
+		/// <value><c>true</c> if is default; otherwise, <c>false</c>.</value>
+		public bool IsDefault {
+			get => is_default;
+			set {
+				is_default = value;
+				Update ();
+			}
+		}
+
 		internal void Update ()
 		{
 			if (IsDefault)
-				shown_text = "[< " + text + " >]";
+				base.Text = ustring.Make (_leftBracket) + ustring.Make (_leftDefault) + " " + text + " " + ustring.Make (_rightDefault) + ustring.Make (_rightBracket);
 			else
-				shown_text = "[ " + text + " ]";
+				base.Text = ustring.Make (_leftBracket) + " " + text + " " + ustring.Make (_rightBracket);
 
-			hot_pos = -1;
-			hot_key = (char)0;
-			int i = 0;
-			foreach (char c in shown_text) {
-				if (Char.IsUpper (c)) {
-					hot_key = c;
-					hot_pos = i;
-					break;
-				}
-				i++;
+			int w = base.Text.RuneCount - (base.Text.Contains (HotKeySpecifier) ? 1 : 0);
+			if (SetWidth (w, out int rWidth)) {
+				Width = rWidth;
 			}
+			w = rWidth;
+			var layout = LayoutStyle;
+			bool layoutChanged = false;
+			if (!(Height is Dim.DimAbsolute)) {
+				// The height is always equal to 1 and must be Dim.DimAbsolute.
+				layoutChanged = true;
+				LayoutStyle = LayoutStyle.Absolute;
+			}
+			Height = 1;
+			if (layoutChanged) {
+				LayoutStyle = layout;
+			}
+			Frame = new Rect (Frame.Location, new Size (w, 1));
 			SetNeedsDisplay ();
-		}
-
-		/// <summary>
-		///   Public constructor, creates a button based on
-		///   the given text at the given position.
-		/// </summary>
-		/// <remarks>
-		///   If the value for is_default is true, a special
-		///   decoration is used, and the enter key on a
-		///   dialog would implicitly activate this button.
-		/// </remarks>
-		/// <param name="x">X position where the button will be shown.</param>
-		/// <param name="y">Y position where the button will be shown.</param>
-		/// <param name="text">The button's text</param>
-		/// <param name="is_default">If set, this makes the button the default button in the current view, which means that if the user presses return on a view that does not handle return, it will be treated as if he had clicked on the button</param>
-		public Button (int x, int y, string text, bool is_default)
-		    : base (new Rect (x, y, text.Length + 4 + (is_default ? 2 : 0), 1))
-		{
-			CanFocus = true;
-
-			this.IsDefault = is_default;
-			Text = text;
-		}
-
-		public override void Redraw (Rect region)
-		{
-			Driver.SetAttribute (HasFocus ? ColorScheme.Focus : ColorScheme.Normal);
-			Move (0, 0);
-			Driver.AddStr (shown_text);
-
-			if (hot_pos != -1) {
-				Move (hot_pos, 0);
-				Driver.SetAttribute (HasFocus ? ColorScheme.HotFocus : ColorScheme.HotNormal);
-				Driver.AddRune (hot_key);
-			}
-		}
-
-		public override void PositionCursor ()
-		{
-			Move (hot_pos, 0);
 		}
 
 		bool CheckKey (KeyEvent key)
 		{
-			if (Char.ToUpper ((char)key.KeyValue) == hot_key) {
-				this.SuperView.SetFocus (this);
-				if (Clicked != null)
-					Clicked ();
+			if (key.Key == (Key.AltMask | HotKey)) {
+				SetFocus ();
+				Clicked?.Invoke ();
 				return true;
 			}
 			return false;
 		}
 
+		///<inheritdoc/>
 		public override bool ProcessHotKey (KeyEvent kb)
 		{
 			if (kb.IsAlt)
@@ -184,38 +184,69 @@ namespace Terminal.Gui {
 			return false;
 		}
 
+		///<inheritdoc/>
 		public override bool ProcessColdKey (KeyEvent kb)
 		{
 			if (IsDefault && kb.KeyValue == '\n') {
-				if (Clicked != null)
-					Clicked ();
+				Clicked?.Invoke ();
 				return true;
 			}
 			return CheckKey (kb);
 		}
 
+		///<inheritdoc/>
 		public override bool ProcessKey (KeyEvent kb)
 		{
 			var c = kb.KeyValue;
-			if (c == '\n' || c == ' ' || Char.ToUpper ((char)c) == hot_key) {
-				if (Clicked != null)
-					Clicked ();
+			if (c == '\n' || c == ' ' || kb.Key == HotKey) {
+				Clicked?.Invoke ();
 				return true;
 			}
 			return base.ProcessKey (kb);
 		}
 
-		public override bool MouseEvent(MouseEvent me)
-		{
-			if (me.Flags == MouseFlags.Button1Clicked) {
-				SuperView.SetFocus (this);
-				SetNeedsDisplay ();
 
-				if (Clicked != null)
-					Clicked ();
+		/// <summary>
+		///   Clicked <see cref="Action"/>, raised when the user clicks the primary mouse button within the Bounds of this <see cref="View"/>
+		///   or if the user presses the action key while this view is focused. (TODO: IsDefault)
+		/// </summary>
+		/// <remarks>
+		///   Client code can hook up to this event, it is
+		///   raised when the button is activated either with
+		///   the mouse or the keyboard.
+		/// </remarks>
+		public event Action Clicked;
+
+		///<inheritdoc/>
+		public override bool MouseEvent (MouseEvent me)
+		{
+			if (me.Flags == MouseFlags.Button1Clicked || me.Flags == MouseFlags.Button1DoubleClicked ||
+				me.Flags == MouseFlags.Button1TripleClicked) {
+				if (CanFocus) {
+					if (!HasFocus) {
+						SetFocus ();
+						SetNeedsDisplay ();
+					}
+					Clicked?.Invoke ();
+				}
+
 				return true;
 			}
 			return false;
+		}
+
+		///<inheritdoc/>
+		public override void PositionCursor ()
+		{
+			if (HotKey == Key.Unknown) {
+				for (int i = 0; i < base.Text.RuneCount; i++) {
+					if (base.Text [i] == text [0]) {
+						Move (i, 0);
+						return;
+					}
+				}
+			}
+			base.PositionCursor ();
 		}
 	}
 }

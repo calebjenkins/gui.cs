@@ -2,38 +2,45 @@
 namespace Terminal.Gui {
 
 	/// <summary>
-	/// Progress bar can indicate progress of an activity visually.
+	/// A Progress Bar view that can indicate progress of an activity visually.
 	/// </summary>
 	/// <remarks>
 	///   <para>
-	///     The progressbar can operate in two modes, percentage mode, or
+	///     <see cref="ProgressBar"/> can operate in two modes, percentage mode, or
 	///     activity mode.  The progress bar starts in percentage mode and
 	///     setting the Fraction property will reflect on the UI the progress 
 	///     made so far.   Activity mode is used when the application has no 
-	///     way of knowing how much time is left, and is started when you invoke
-	///     the Pulse() method.    You should call the Pulse method repeatedly as
-	///     your application makes progress.
+	///     way of knowing how much time is left, and is started when the <see cref="Pulse"/> method is called.  
+	///     Call <see cref="Pulse"/> repeatedly as progress is made.
 	///   </para>
 	/// </remarks>
 	public class ProgressBar : View {
 		bool isActivity;
 		int activityPos, delta;
-		float progress;
 
 		/// <summary>
-		/// Initializes a new instance of the <see cref="T:Terminal.Gui.ProgressBar"/> class, starts in percentage mode.
+		/// Initializes a new instance of the <see cref="ProgressBar"/> class, starts in percentage mode with an absolute position and size.
 		/// </summary>
 		/// <param name="rect">Rect.</param>
 		public ProgressBar (Rect rect) : base (rect)
 		{
 			CanFocus = false;
-			progress = 0;
+			fraction = 0;
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="ProgressBar"/> class, starts in percentage mode and uses relative layout.
+		/// </summary>
+		public ProgressBar () : base ()
+		{
+			CanFocus = false;
+			fraction = 0;
 		}
 
 		float fraction;
 
 		/// <summary>
-		/// Gets or sets the progress indicator fraction to display, must be a value between 0 and 1.
+		/// Gets or sets the <see cref="ProgressBar"/> fraction to display, must be a value between 0 and 1.
 		/// </summary>
 		/// <value>The fraction representing the progress.</value>
 		public float Fraction {
@@ -46,10 +53,10 @@ namespace Terminal.Gui {
 		}
 
 		/// <summary>
-		/// Notifies the progress bar that some progress has taken place.
+		/// Notifies the <see cref="ProgressBar"/> that some progress has taken place.
 		/// </summary>
 		/// <remarks>
-		/// If the ProgressBar is is percentage mode, it switches to activity
+		/// If the <see cref="ProgressBar"/> is is percentage mode, it switches to activity
 		/// mode.   If is in activity mode, the marker is moved.
 		/// </remarks>
 		public void Pulse ()
@@ -72,6 +79,7 @@ namespace Terminal.Gui {
 			SetNeedsDisplay ();
 		}
 
+		///<inheritdoc/>
 		public override void Redraw(Rect region)
 		{
 			Driver.SetAttribute (ColorScheme.Normal);

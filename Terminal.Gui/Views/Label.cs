@@ -8,222 +8,93 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using NStack;
 
 namespace Terminal.Gui {
 	/// <summary>
-	/// Text alignment enumeration, controls how text is displayed.
+	/// The Label <see cref="View"/> displays a string at a given position and supports multiple lines separted by newline characters. Multi-line Labels support word wrap.
 	/// </summary>
-	public enum TextAlignment {
-		/// <summary>
-		/// Aligns the text to the left of the frame.
-		/// </summary>
-		Left, 
-		/// <summary>
-		/// Aligns the text to the right side of the frame.
-		/// </summary>
-		Right, 
-		/// <summary>
-		/// Centers the text in the frame.
-		/// </summary>
-		Centered, 
-		/// <summary>
-		/// Shows the line as justified text in the line.
-		/// </summary>
-		Justified
-	}
-
-	/// <summary>
-	/// Label view, displays a string at a given position, can include multiple lines.
-	/// </summary>
+	/// <remarks>
+	/// The <see cref="Label"/> view is functionality identical to <see cref="View"/> and is included for API backwards compatibility.
+	/// </remarks>
 	public class Label : View {
-		List<ustring> lines = new List<ustring> ();
-		bool recalcPending = true;
-		ustring text;
-		TextAlignment textAlignment;
-
-		static Rect CalcRect (int x, int y, ustring s)
+		/// <inheritdoc/>
+		public Label ()
 		{
-			int mw = 0;
-			int ml = 1;
-
-			int cols = 0;
-			foreach (var rune in s) {
-				if (rune == '\n') {
-					ml++;
-					if (cols > mw)
-						mw = cols;
-					cols = 0;
-				} else
-					cols++;
-			}
-			return new Rect (x, y, cols, ml);
 		}
 
-		/// <summary>
-		///   Public constructor: creates a label at the given
-		///   coordinate with the given string, computes the bounding box
-		///   based on the size of the string, assumes that the string contains
-		///   newlines for multiple lines, no special breaking rules are used.
-		/// </summary>
-		public Label (int x, int y, ustring text) : this (CalcRect (x, y, text), text)
+		/// <inheritdoc/>
+		public Label (Rect frame) : base (frame)
+		{
+		}
+
+		/// <inheritdoc/>
+		public Label (ustring text) : base (text)
+		{
+		}
+
+		/// <inheritdoc/>
+		public Label (Rect rect, ustring text) : base (rect, text)
+		{
+		}
+
+		/// <inheritdoc/>
+		public Label (int x, int y, ustring text) : base (x, y, text)
 		{
 		}
 
 		/// <summary>
-		///   Public constructor: creates a label at the given
-		///   coordinate with the given string and uses the specified
-		///   frame for the string.
+		///   Clicked <see cref="Action"/>, raised when the user clicks the primary mouse button within the Bounds of this <see cref="View"/>
+		///   or if the user presses the action key while this view is focused. (TODO: IsDefault)
 		/// </summary>
-		public Label (Rect rect, ustring text) : base (rect)
+		/// <remarks>
+		///   Client code can hook up to this event, it is
+		///   raised when the button is activated either with
+		///   the mouse or the keyboard.
+		/// </remarks>
+		public event Action Clicked;
+
+		///// <inheritdoc/>
+		//public new ustring Text {
+		//	get => base.Text;
+		//	set {
+		//		base.Text = value;
+		//		// This supports Label auto-sizing when Text changes (preserving backwards compat behavior)
+		//		if (Frame.Height == 1 && !ustring.IsNullOrEmpty (value)) {
+		//			int w = Text.RuneCount;
+		//			Width = w;
+		//			Frame = new Rect (Frame.Location, new Size (w, Frame.Height));
+		//		}
+		//		SetNeedsDisplay ();
+		//	}
+		//}
+
+		/// <summary>
+		/// Method invoked when a mouse event is generated
+		/// </summary>
+		/// <param name="mouseEvent"></param>
+		/// <returns><c>true</c>, if the event was handled, <c>false</c> otherwise.</returns>
+		public override bool OnMouseEvent (MouseEvent mouseEvent)
 		{
-			this.text = text;
-		}
+			MouseEventArgs args = new MouseEventArgs (mouseEvent);
+			OnMouseClick (args);
+			if (args.Handled)
+				return true;
+			if (MouseEvent (mouseEvent))
+				return true;
 
-		static char [] whitespace = new char [] { ' ', '\t' };
 
-		static ustring ClipAndJustify (ustring str, int width, TextAlignment talign)
-		{
-			int slen = str.Length;
-			if (slen > width)
-				return str [0, width];
-			else {
-				if (talign == TextAlignment.Justified) {
-					// TODO: ustring needs this
-			               	var words = str.ToString ().Split (whitespace, StringSplitOptions.RemoveEmptyEntries);
-					int textCount = words.Sum ((arg) => arg.Length);
-
-					var spaces = (width- textCount) / (words.Length - 1);
-					var extras = (width - textCount) % words.Length;
-
-					var s = new System.Text.StringBuilder ();
-					//s.Append ($"tc={textCount} sp={spaces},x={extras} - ");
-					for (int w = 0; w < words.Length; w++) {
-						var x = words [w];
-						s.Append (x);
-						if (w + 1 < words.Length)
-							for (int i = 0; i < spaces; i++)
-								s.Append (' ');
-						if (extras > 0) {
-							s.Append ('_');
-							extras--;
-						}
-					}
-					return ustring.Make (s.ToString ());
+			if (mouseEvent.Flags == MouseFlags.Button1Clicked) {
+				if (!HasFocus && SuperView != null) {
+					SetFocus ();
+					SetNeedsDisplay ();
 				}
-				return str;
+
+				Clicked?.Invoke ();
+				return true;
 			}
-		}
-
-		void Recalc ()
-		{
-			recalcPending = false;
-			Recalc (text, lines, Frame.Width, textAlignment);
-		}
-
-		static void Recalc (ustring textStr, List<ustring> lineResult, int width, TextAlignment talign)
-		{
-			lineResult.Clear ();
-			if (textStr.IndexOf ('\n') == -1) {
-				lineResult.Add (ClipAndJustify (textStr, width, talign));
-				return;
-			}
-			int textLen = textStr.Length;
-			int lp = 0;
-			for (int i = 0; i < textLen; i++) {
-				Rune c = textStr [i];
-
-				if (c == '\n') {
-					lineResult.Add (ClipAndJustify (textStr [lp, i], width, talign));
-					lp = i + 1;
-				}
-			}
-		}
-
-		public override void Redraw (Rect region)
-		{
-			if (recalcPending)
-				Recalc ();
-
-			if (TextColor != -1)
-				Driver.SetAttribute (TextColor);
-			else
-				Driver.SetAttribute (ColorScheme.Normal);
-
-			Clear ();
-			Move (Frame.X, Frame.Y);
-			for (int line = 0; line < lines.Count; line++) {
-				if (line < region.Top || line >= region.Bottom)
-					continue;
-				var str = lines [line];
-				int x;
-				switch (textAlignment) {
-				case TextAlignment.Left:
-				case TextAlignment.Justified:
-					x = 0;
-					break;
-				case TextAlignment.Right:
-					x = Frame.Right - str.Length;
-					break;
-				case TextAlignment.Centered:
-					x = Frame.Left + (Frame.Width - str.Length) / 2;
-					break;
-				default:
-					throw new ArgumentOutOfRangeException ();
-				}
-				Move (x, line);
-				Driver.AddStr (str);
-			}
-		}
-
-		/// <summary>
-		/// Computes the number of lines needed to render the specified text by the Label control
-		/// </summary>
-		/// <returns>Number of lines.</returns>
-		/// <param name="text">Text, may contain newlines.</param>
-		/// <param name="width">The width for the text.</param>
-		public static int MeasureLines (ustring text, int width)
-		{
-			var result = new List<ustring> ();
-			Recalc (text, result, width, TextAlignment.Left);
-			return result.Count ();
-		}
-
-		/// <summary>
-		///   The text displayed by this widget.
-		/// </summary>
-		public virtual ustring Text {
-			get => text;
-			set {
-				text = value;
-				recalcPending = true;
-				SetNeedsDisplay ();
-			}
-		}
-
-		/// <summary>
-		/// Controls the text-alignemtn property of the label, changing it will redisplay the label.
-		/// </summary>
-		/// <value>The text alignment.</value>
-		public TextAlignment TextAlignment {
-			get => textAlignment;
-			set {
-				textAlignment = value;
-				SetNeedsDisplay ();
-			}
-		}
-
-		Attribute textColor = -1;
-		/// <summary>
-		///   The color used for the label
-		/// </summary>        
-		public Attribute TextColor {
-			get => textColor;
-			set {
-				textColor = value;
-				SetNeedsDisplay ();
-			}
+			return false;
 		}
 	}
-
 }
